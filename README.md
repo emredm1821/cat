@@ -4,7 +4,21 @@
 [![Rust](https://github.com/emredm1821/cat/actions/workflows/rust.yml/badge.svg)](https://github.com/emredm1821/cat/actions/workflows/rust.yml)
 
 ## Preview
-<img width="1359" height="719" alt="Example" src="https://github.com/user-attachments/assets/b170df4c-cafb-4fe1-b48d-0ffae336f21b" />
+
+<details open>
+<summary>Terminal Preview</summary>
+
+<img width="1365" height="720" alt="Code Preview" src="https://github.com/user-attachments/assets/95d058f4-66f9-4323-82b6-9d74e37fac06" />
+
+</details>
+
+<details>
+<summary>Markdown Preview</summary>
+
+<img width="1364" height="716" alt="MD Preview" src="https://github.com/user-attachments/assets/a7e43bcb-9acd-4030-b0a3-dba80e0869e2" />
+
+
+</details>
 
 ## Features
 
