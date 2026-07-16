@@ -4,6 +4,16 @@ Linux "cat" command-line tool made in Windows with Syntax Highlighting and Markd
 ## Preview
 <img width="1359" height="719" alt="Example" src="https://github.com/user-attachments/assets/b170df4c-cafb-4fe1-b48d-0ffae336f21b" />
 
+## Features
+
+- 🎨 **Syntax highlighting**: for a wide range of programming languages, powered by [`syntect`](https://github.com/trishume/syntect)
+- **Markdown preview**: headings, bold/italic/strikethrough, lists, code blocks, blockquotes, and links rendered directly in the terminal
+- **Drop-in `cat` replacement**: supports classic flags like `-A`, `-b`, `-e`, `-E`, `-n`, `-s`, `-T`, `-v`
+- **Fast**: written in Rust, compiled with LTO and full optimizations
+- **Toggleable**: disable syntax highlighting or markdown rendering with a single flag when you just want raw output
+- **Stdin support**: pipe input directly, just like the real `cat`
+- **No crashes on binary/non-UTF-8 files**: falls back gracefully instead of erroring out
+
 ## Usage
 
 ```
@@ -46,6 +56,18 @@ For Powershell:
 ```ps1
 irm https://raw.githubusercontent.com/emredm1821/cat/main/install/powershell.ps1 | iex
 ```
+
+## Building from source
+
+Requires [Rust](https://www.rust-lang.org/tools/install) and Cargo.
+
+```sh
+git clone https://github.com/emredm1821/cat.git
+cd cat
+cargo build --release
+```
+
+The compiled binary will be located at `target/release/cat.exe`.
 
 ## License
 
