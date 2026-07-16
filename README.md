@@ -38,7 +38,7 @@ cat file.txt | cat -A
 ## Installation
 
 For CMD:
-```sh
+```bat
 curl -sL https://raw.githubusercontent.com/emredm1821/cat/main/install/cmd.bat -o "%TEMP%\install.bat" && call "%TEMP%\install.bat"
 ```
 
