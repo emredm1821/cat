@@ -9,7 +9,7 @@ use syntect::parsing::{SyntaxReference, SyntaxSet};
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
 
 #[derive(Parser)]
-#[command(name = "rcat", version, about = "cat, but with syntax highlighting and markdown preview")]
+#[command(name = "cat", version, about = "cat, but with syntax highlighting and markdown preview")]
 struct Cli {
     #[arg(short = 'A')]
     show_all: bool,
@@ -314,7 +314,7 @@ fn main() {
                 }
             }
             Err(e) => {
-                eprintln!("rcat: {}: {}", file, e);
+                eprintln!("cat: {}: {}", file, e);
                 exit_code = 1;
             }
         }
