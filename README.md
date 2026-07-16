@@ -8,13 +8,24 @@
 
 ## Features
 
-- **Syntax highlighting**: for a wide range of programming languages, powered by [`syntect`](https://github.com/trishume/syntect)
-- **Markdown preview**: headings, bold/italic/strikethrough, lists, code blocks, blockquotes, and links rendered directly in the terminal
+- **Syntax highlighting**: automatic syntax highlighting for 100+ programming languages, powered by [`syntect`](https://github.com/trishume/syntect)
+- **Markdown preview**: full GitHub-flavored Markdown rendering directly in the terminal, including headings, bold/italic/strikethrough, lists, code blocks, blockquotes, links, tables, and task lists
+- **Theme support**: customizable terminal color themes with `--theme` flag and 7 built-in themes:
+  - `ocean-dark`
+  - `ocean-light`
+  - `eighties`
+  - `mocha`
+  - `github`
+  - `solarized-dark`
+  - `solarized-light`
+- **Language override**: force syntax highlighting for piped input with `-l`, `--language`
+- **Line range selection**: display specific line ranges from files using `-r`, `--range`
+- **Plain mode**: disable all formatting at once with `-p`, `--plain`
+- **GFM table rendering**: full support for GitHub-flavored tables with automatic column width calculation and alignment detection
 - **Drop-in `cat` replacement**: supports classic flags like `-A`, `-b`, `-e`, `-E`, `-n`, `-s`, `-T`, `-v`
 - **Fast**: written in Rust, compiled with LTO and full optimizations
-- **Toggleable**: disable syntax highlighting or markdown rendering with a single flag when you just want raw output
 - **Stdin support**: pipe input directly, just like the real `cat`
-- **No crashes on binary/non-UTF-8 files**: falls back gracefully instead of erroring out
+- **No crashes on binary/non-UTF-8 files**: improved handling for binary files and invalid UTF-8 content
 
 ## Usage
 
@@ -32,6 +43,10 @@ cat [options] [file...]
 | `-s` | Squeeze multiple adjacent blank lines into a single blank line |
 | `-T` | Display TAB characters as `^I` |
 | `-v` | Show non-printing characters (except for tabs and end-of-line) |
+| `-l`, `--language <lang>` | Force syntax highlighting language for piped input |
+| `-r`, `--range <start:end>` | Display only a specific line range from a file |
+| `-p`, `--plain` | Disable all formatting and output raw text |
+| `--theme <theme>` | Select a built-in color theme |
 | `--syntax-highlighting=<on\|off>` | Toggle syntax highlighting (default: `on`) |
 | `--markdown-preview=<on\|off>` | Render `.md`/`.markdown` files as formatted output in the terminal (default: `on`) |
 | `-h`, `--help` | Print help information |
@@ -45,6 +60,10 @@ cat -n file.txt
 cat --markdown-preview=off README.md
 cat --syntax-highlighting=off file.py
 cat file.txt | cat -A
+cat --theme=mocha file.rs
+cat -l rust < code.txt
+cat -r 10:50 file.rs
+cat -p file.py
 ```
 
 ## Installation
