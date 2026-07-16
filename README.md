@@ -37,4 +37,18 @@ cat file.txt | cat -A
 
 ## Installation
 
- 
+For CMD:
+```sh
+curl -sL https://raw.githubusercontent.com/emredm1821/cat/main/install/cmd.bat -o "%TEMP%\install.bat" && call "%TEMP%\install.bat"
+```
+
+For Powershell:
+```ps1
+irm https://raw.githubusercontent.com/emredm1821/cat/main/install/powershell.ps1 | iex
+```
+
+## License
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
+This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](LICENSE) file for details.
