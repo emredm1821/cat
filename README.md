@@ -1,6 +1,8 @@
 # cat
 `cat`, but better. A fast, Rust-powered command-line tool that brings the classic Linux `cat` experience to Windows, complete with automatic syntax highlighting for your code and rich markdown previews, right in the terminal.
 
+[![Rust](https://github.com/emredm1821/cat/actions/workflows/rust.yml/badge.svg)](https://github.com/emredm1821/cat/actions/workflows/rust.yml)
+
 ## Preview
 <img width="1359" height="719" alt="Example" src="https://github.com/user-attachments/assets/b170df4c-cafb-4fe1-b48d-0ffae336f21b" />
 
