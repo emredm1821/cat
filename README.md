@@ -6,7 +6,7 @@ Linux "cat" command-line tool made in Windows with Syntax Highlighting and Markd
 
 ## Features
 
-- 🎨 **Syntax highlighting**: for a wide range of programming languages, powered by [`syntect`](https://github.com/trishume/syntect)
+- **Syntax highlighting**: for a wide range of programming languages, powered by [`syntect`](https://github.com/trishume/syntect)
 - **Markdown preview**: headings, bold/italic/strikethrough, lists, code blocks, blockquotes, and links rendered directly in the terminal
 - **Drop-in `cat` replacement**: supports classic flags like `-A`, `-b`, `-e`, `-E`, `-n`, `-s`, `-T`, `-v`
 - **Fast**: written in Rust, compiled with LTO and full optimizations
