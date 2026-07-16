@@ -1,5 +1,5 @@
 # cat
-Linux "cat" command-line tool made in Windows with Syntax Highlighting and Markdown Preview in Rust.
+`cat`, but better. A fast, Rust-powered command-line tool that brings the classic Linux `cat` experience to Windows, complete with automatic syntax highlighting for your code and rich markdown previews, right in the terminal.
 
 ## Preview
 <img width="1359" height="719" alt="Example" src="https://github.com/user-attachments/assets/b170df4c-cafb-4fe1-b48d-0ffae336f21b" />
@@ -68,6 +68,19 @@ cargo build --release
 ```
 
 The compiled binary will be located at `target/release/cat.exe`.
+
+## Contributing
+
+Contributions are welcome! To contribute:
+
+1. Fork the repository
+2. Create a new branch (`git checkout -b feature/example-feature`)
+3. Make your changes
+4. Commit your changes (`git commit -m "Add: Example Feature"`)
+5. Push to your branch (`git push origin feature/example-feature`)
+6. Open a Pull Request
+
+Please make sure your code builds cleanly with `cargo build --release` before submitting a PR. For bug reports or feature requests, feel free to open an [issue](https://github.com/emredm1821/cat/issues).
 
 ## License
 
