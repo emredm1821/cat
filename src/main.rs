@@ -1,36 +1,46 @@
 use clap::Parser;
-use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Parser as MdParser, Tag, TagEnd};
+use pulldown_cmark::{
+    Alignment, CodeBlockKind, Event, HeadingLevel, Options, Parser as MdParser, Tag, TagEnd,
+};
 use std::fs;
 use std::io::{self, Read, Write};
 use std::path::Path;
 use syntect::easy::HighlightLines;
-use syntect::highlighting::ThemeSet;
+use syntect::highlighting::{Theme, ThemeSet};
 use syntect::parsing::{SyntaxReference, SyntaxSet};
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
 
 #[derive(Parser)]
 #[command(name = "cat", version, about = "cat, but with syntax highlighting and markdown preview")]
 struct Cli {
-    #[arg(short = 'A')]
+    #[arg(short = 'A', long = "show-all")]
     show_all: bool,
-    #[arg(short = 'b')]
+    #[arg(short = 'b', long = "number-nonblank")]
     number_nonblank: bool,
     #[arg(short = 'e')]
     show_ends_v: bool,
-    #[arg(short = 'E')]
+    #[arg(short = 'E', long = "show-ends")]
     show_ends: bool,
-    #[arg(short = 'n')]
+    #[arg(short = 'n', long = "number")]
     number: bool,
-    #[arg(short = 's')]
+    #[arg(short = 's', long = "squeeze-blank")]
     squeeze_blank: bool,
-    #[arg(short = 'T')]
+    #[arg(short = 'T', long = "show-tabs")]
     show_tabs: bool,
-    #[arg(short = 'v')]
+    #[arg(short = 'v', long = "show-nonprinting")]
     show_nonprinting: bool,
+    #[arg(short = 'p', long = "plain")]
+    plain: bool,
     #[arg(long = "syntax-highlighting", default_value = "on")]
     syntax_highlighting: String,
     #[arg(long = "markdown-preview", default_value = "on")]
     markdown_preview: String,
+    #[arg(short = 'l', long = "language")]
+    language: Option<String>,
+    #[arg(long = "theme", default_value = "ocean-dark")]
+    theme: String,
+    #[arg(short = 'r', long = "range")]
+    range: Option<String>,
     files: Vec<String>,
 }
 
@@ -43,6 +53,59 @@ fn read_input(path: &str) -> io::Result<String> {
         fs::read(path)?
     };
     Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+fn resolve_theme(name: &str) -> &'static str {
+    match name.to_lowercase().as_str() {
+        "ocean-dark" | "ocean" | "dark" => "base16-ocean.dark",
+        "ocean-light" | "light" => "base16-ocean.light",
+        "eighties" => "base16-eighties.dark",
+        "mocha" => "base16-mocha.dark",
+        "github" => "InspiredGitHub",
+        "solarized-dark" => "Solarized (dark)",
+        "solarized-light" => "Solarized (light)",
+        _ => "base16-ocean.dark",
+    }
+}
+
+fn pick_theme<'a>(ts: &'a ThemeSet, key: &str) -> &'a Theme {
+    ts.themes
+        .get(key)
+        .unwrap_or_else(|| &ts.themes["base16-ocean.dark"])
+}
+
+fn parse_range(spec: &str, total: usize) -> (usize, usize) {
+    let parts: Vec<&str> = spec.splitn(2, ':').collect();
+    let mut start = parts
+        .first()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(1);
+    let mut end = parts
+        .get(1)
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(total);
+    if start < 1 {
+        start = 1;
+    }
+    if end > total {
+        end = total;
+    }
+    (start, end)
+}
+
+fn apply_range(content: &str, spec: &str) -> String {
+    let lines: Vec<&str> = content.split('\n').collect();
+    let total = lines.len();
+    if total == 0 {
+        return String::new();
+    }
+    let (start, end) = parse_range(spec, total);
+    if start > end {
+        return String::new();
+    }
+    let mut s = lines[start - 1..end].join("\n");
+    s.push('\n');
+    s
 }
 
 fn print_raw(content: &str, cli: &Cli) {
@@ -111,7 +174,7 @@ fn print_raw(content: &str, cli: &Cli) {
                     } else if low == 127 {
                         out.push_str("^?");
                     } else {
-                        out.push((low as u8) as char);
+                        out.push(low as u8 as char);
                     }
                 } else {
                     out.push(ch);
@@ -130,7 +193,20 @@ fn print_raw(content: &str, cli: &Cli) {
     let _ = io::stdout().write_all(out.as_bytes());
 }
 
-fn find_syntax<'a>(ss: &'a SyntaxSet, filename: &str, content: &str) -> &'a SyntaxReference {
+fn find_syntax<'a>(
+    ss: &'a SyntaxSet,
+    filename: &str,
+    content: &str,
+    forced: &Option<String>,
+) -> &'a SyntaxReference {
+    if let Some(lang) = forced {
+        if let Some(s) = ss.find_syntax_by_token(lang) {
+            return s;
+        }
+        if let Some(s) = ss.find_syntax_by_extension(lang) {
+            return s;
+        }
+    }
     let ext = Path::new(filename)
         .extension()
         .and_then(|e| e.to_str())
@@ -148,11 +224,11 @@ fn find_syntax<'a>(ss: &'a SyntaxSet, filename: &str, content: &str) -> &'a Synt
     ss.find_syntax_plain_text()
 }
 
-fn highlight_and_print(content: &str, filename: &str) {
+fn highlight_and_print(content: &str, filename: &str, theme_key: &str, forced_lang: &Option<String>) {
     let ss = SyntaxSet::load_defaults_newlines();
     let ts = ThemeSet::load_defaults();
-    let syntax = find_syntax(&ss, filename, content);
-    let theme = &ts.themes["base16-ocean.dark"];
+    let syntax = find_syntax(&ss, filename, content, forced_lang);
+    let theme = pick_theme(&ts, theme_key);
     let mut h = HighlightLines::new(syntax, theme);
     let mut out = String::with_capacity(content.len() * 2);
 
@@ -164,16 +240,128 @@ fn highlight_and_print(content: &str, filename: &str) {
     let _ = io::stdout().write_all(out.as_bytes());
 }
 
-fn render_markdown(content: &str) {
+fn visible_width(s: &str) -> usize {
+    let mut width = 0;
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            if chars.peek() == Some(&'[') {
+                chars.next();
+                while let Some(&nc) = chars.peek() {
+                    chars.next();
+                    if nc.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+        } else {
+            width += 1;
+        }
+    }
+    width
+}
+
+fn pad_cell(s: &str, width: usize, align: &Alignment) -> String {
+    let vw = visible_width(s);
+    let diff = width.saturating_sub(vw);
+    match align {
+        Alignment::Right => format!("{}{}", " ".repeat(diff), s),
+        Alignment::Center => {
+            let left = diff / 2;
+            let right = diff - left;
+            format!("{}{}{}", " ".repeat(left), s, " ".repeat(right))
+        }
+        _ => format!("{}{}", s, " ".repeat(diff)),
+    }
+}
+
+fn table_border(widths: &[usize], left: &str, mid: &str, right: &str) -> String {
+    let mut s = String::from(left);
+    for (i, w) in widths.iter().enumerate() {
+        s.push_str(&"─".repeat(w + 2));
+        if i < widths.len() - 1 {
+            s.push_str(mid);
+        }
+    }
+    s.push_str(right);
+    s
+}
+
+fn print_table(header: &[String], rows: &[Vec<String>], alignments: &[Alignment]) {
+    if header.is_empty() && rows.is_empty() {
+        return;
+    }
+    let row_max = rows.iter().map(|r| r.len()).max().unwrap_or(0);
+    let col_count = header.len().max(row_max).max(alignments.len());
+    if col_count == 0 {
+        return;
+    }
+
+    let mut widths = vec![3usize; col_count];
+    for (i, h) in header.iter().enumerate() {
+        if i < col_count {
+            widths[i] = widths[i].max(visible_width(h));
+        }
+    }
+    for row in rows {
+        for (i, cell) in row.iter().enumerate() {
+            if i < col_count {
+                widths[i] = widths[i].max(visible_width(cell));
+            }
+        }
+    }
+
+    println!("\x1b[2m{}\x1b[0m", table_border(&widths, "┌", "┬", "┐"));
+
+    let mut header_line = String::from("\x1b[2m│\x1b[0m ");
+    for i in 0..col_count {
+        let cell = header.get(i).map(|s| s.as_str()).unwrap_or("");
+        let align = alignments.get(i).unwrap_or(&Alignment::None);
+        header_line.push_str(&format!("\x1b[1;36m{}\x1b[0m", pad_cell(cell, widths[i], align)));
+        header_line.push_str(" \x1b[2m│\x1b[0m ");
+    }
+    println!("{}", header_line.trim_end());
+
+    println!("\x1b[2m{}\x1b[0m", table_border(&widths, "├", "┼", "┤"));
+
+    for row in rows {
+        let mut line = String::from("\x1b[2m│\x1b[0m ");
+        for i in 0..col_count {
+            let cell = row.get(i).map(|s| s.as_str()).unwrap_or("");
+            let align = alignments.get(i).unwrap_or(&Alignment::None);
+            line.push_str(&pad_cell(cell, widths[i], align));
+            line.push_str(" \x1b[2m│\x1b[0m ");
+        }
+        println!("{}", line.trim_end());
+    }
+
+    println!("\x1b[2m{}\x1b[0m", table_border(&widths, "└", "┴", "┘"));
+    println!();
+}
+
+fn render_markdown(content: &str, theme_key: &str) {
     let ss = SyntaxSet::load_defaults_newlines();
     let ts = ThemeSet::load_defaults();
-    let theme = &ts.themes["base16-ocean.dark"];
+    let theme = pick_theme(&ts, theme_key);
 
-    let parser = MdParser::new(content);
+    let options = Options::ENABLE_TABLES
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_FOOTNOTES
+        | Options::ENABLE_SMART_PUNCTUATION;
+    let parser = MdParser::new_ext(content, options);
+
     let mut list_stack: Vec<Option<u64>> = Vec::new();
     let mut in_code_block = false;
     let mut code_lang = String::new();
     let mut code_buffer = String::new();
+
+    let mut in_table = false;
+    let mut table_alignments: Vec<Alignment> = Vec::new();
+    let mut header_row: Vec<String> = Vec::new();
+    let mut table_rows: Vec<Vec<String>> = Vec::new();
+    let mut current_row: Vec<String> = Vec::new();
+    let mut cell_buffer = String::new();
 
     for event in parser {
         match event {
@@ -189,12 +377,48 @@ fn render_markdown(content: &str) {
             Event::End(TagEnd::Heading(_)) => {
                 println!("\x1b[0m");
             }
-            Event::Start(Tag::Strong) => print!("\x1b[1m"),
-            Event::End(TagEnd::Strong) => print!("\x1b[22m"),
-            Event::Start(Tag::Emphasis) => print!("\x1b[3m"),
-            Event::End(TagEnd::Emphasis) => print!("\x1b[23m"),
-            Event::Start(Tag::Strikethrough) => print!("\x1b[9m"),
-            Event::End(TagEnd::Strikethrough) => print!("\x1b[29m"),
+            Event::Start(Tag::Strong) => {
+                if in_table {
+                    cell_buffer.push_str("\x1b[1m");
+                } else {
+                    print!("\x1b[1m");
+                }
+            }
+            Event::End(TagEnd::Strong) => {
+                if in_table {
+                    cell_buffer.push_str("\x1b[22m");
+                } else {
+                    print!("\x1b[22m");
+                }
+            }
+            Event::Start(Tag::Emphasis) => {
+                if in_table {
+                    cell_buffer.push_str("\x1b[3m");
+                } else {
+                    print!("\x1b[3m");
+                }
+            }
+            Event::End(TagEnd::Emphasis) => {
+                if in_table {
+                    cell_buffer.push_str("\x1b[23m");
+                } else {
+                    print!("\x1b[23m");
+                }
+            }
+            Event::Start(Tag::Strikethrough) => {
+                if in_table {
+                    cell_buffer.push_str("\x1b[9m");
+                } else {
+                    print!("\x1b[9m");
+                }
+            }
+            Event::End(TagEnd::Strikethrough) => {
+                if in_table {
+                    cell_buffer.push_str("\x1b[29m");
+                } else {
+                    print!("\x1b[29m");
+                }
+            }
             Event::Start(Tag::CodeBlock(kind)) => {
                 in_code_block = true;
                 code_buffer.clear();
@@ -222,11 +446,17 @@ fn render_markdown(content: &str) {
                 in_code_block = false;
             }
             Event::Code(text) => {
-                print!("\x1b[38;5;222m{}\x1b[0m", text);
+                if in_table {
+                    cell_buffer.push_str(&format!("\x1b[38;5;222m{}\x1b[0m", text));
+                } else {
+                    print!("\x1b[38;5;222m{}\x1b[0m", text);
+                }
             }
             Event::Text(text) => {
                 if in_code_block {
                     code_buffer.push_str(&text);
+                } else if in_table {
+                    cell_buffer.push_str(&text);
                 } else {
                     print!("{}", text);
                 }
@@ -251,17 +481,79 @@ fn render_markdown(content: &str) {
                 }
             }
             Event::End(TagEnd::Item) => {}
-            Event::Start(Tag::BlockQuote) => {
+            Event::TaskListMarker(checked) => {
+                if checked {
+                    print!("\x1b[32m[x]\x1b[0m ");
+                } else {
+                    print!("\x1b[2m[ ]\x1b[0m ");
+                }
+            }
+            Event::Start(Tag::BlockQuote(_)) => {
                 print!("\x1b[2;3m▏ ");
             }
-            Event::End(TagEnd::BlockQuote) => {
+            Event::End(TagEnd::BlockQuote(_)) => {
                 println!("\x1b[0m");
             }
             Event::Start(Tag::Link { .. }) => {
-                print!("\x1b[4;34m");
+                if in_table {
+                    cell_buffer.push_str("\x1b[4;34m");
+                } else {
+                    print!("\x1b[4;34m");
+                }
             }
             Event::End(TagEnd::Link) => {
-                print!("\x1b[0m");
+                if in_table {
+                    cell_buffer.push_str("\x1b[0m");
+                } else {
+                    print!("\x1b[0m");
+                }
+            }
+            Event::Start(Tag::Table(alignments)) => {
+                in_table = true;
+                table_alignments = alignments;
+                header_row.clear();
+                table_rows.clear();
+            }
+            Event::End(TagEnd::Table) => {
+                print_table(&header_row, &table_rows, &table_alignments);
+                in_table = false;
+            }
+            Event::Start(Tag::TableHead) => {
+                current_row.clear();
+            }
+            Event::End(TagEnd::TableHead) => {
+                header_row = std::mem::take(&mut current_row);
+            }
+            Event::Start(Tag::TableRow) => {
+                current_row.clear();
+            }
+            Event::End(TagEnd::TableRow) => {
+                table_rows.push(std::mem::take(&mut current_row));
+            }
+            Event::Start(Tag::TableCell) => {
+                cell_buffer.clear();
+            }
+            Event::End(TagEnd::TableCell) => {
+                current_row.push(std::mem::take(&mut cell_buffer));
+            }
+            Event::FootnoteReference(label) => {
+                print!("\x1b[2m[{}]\x1b[0m", label);
+            }
+            Event::Start(Tag::FootnoteDefinition(label)) => {
+                print!("\n\x1b[2m[{}]:\x1b[0m ", label);
+            }
+            Event::End(TagEnd::FootnoteDefinition) => {
+                println!();
+            }
+            Event::Html(html) => {
+                if html.to_lowercase().contains("<img") {
+                    print!("\x1b[2m[image]\x1b[0m");
+                }
+            }
+            Event::InlineHtml(html) => {
+                if html.to_lowercase().contains("<img") {
+                    print!("\x1b[2m[image]\x1b[0m");
+                }
             }
             Event::End(TagEnd::Paragraph) => {
                 println!();
@@ -277,8 +569,8 @@ fn render_markdown(content: &str) {
 
 fn main() {
     let cli = Cli::parse();
-    let syntax_on = cli.syntax_highlighting.to_lowercase() != "off";
-    let markdown_on = cli.markdown_preview.to_lowercase() != "off";
+    let syntax_on = !cli.plain && cli.syntax_highlighting.to_lowercase() != "off";
+    let markdown_on = !cli.plain && cli.markdown_preview.to_lowercase() != "off";
     let raw_mode = cli.show_all
         || cli.number_nonblank
         || cli.show_ends_v
@@ -287,6 +579,8 @@ fn main() {
         || cli.squeeze_blank
         || cli.show_tabs
         || cli.show_nonprinting;
+
+    let theme_key = resolve_theme(&cli.theme);
 
     let files: Vec<String> = if cli.files.is_empty() {
         vec!["-".to_string()]
@@ -298,16 +592,19 @@ fn main() {
 
     for file in &files {
         match read_input(file) {
-            Ok(content) => {
+            Ok(mut content) => {
+                if let Some(range) = &cli.range {
+                    content = apply_range(&content, range);
+                }
                 if raw_mode {
                     print_raw(&content, &cli);
                 } else {
                     let lower = file.to_lowercase();
                     let is_md = lower.ends_with(".md") || lower.ends_with(".markdown");
                     if is_md && markdown_on {
-                        render_markdown(&content);
+                        render_markdown(&content, theme_key);
                     } else if syntax_on {
-                        highlight_and_print(&content, file);
+                        highlight_and_print(&content, file, theme_key, &cli.language);
                     } else {
                         let _ = io::stdout().write_all(content.as_bytes());
                     }
